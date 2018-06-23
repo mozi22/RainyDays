@@ -1,5 +1,6 @@
 
 import tensorflow as tf
+import lmbspecialops as sops
 
 def convrelu2(name,inputs, filters, kernel_size, stride, activation=None):
 
