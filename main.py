@@ -2,7 +2,9 @@
 import network
 import input_pipeline
 
-input_pipeline.parse()
+dataset = input_pipeline.parse()
+iterator = dataset.make_one_shot_iterator()
 
+input_image, resulting_image = iterator.get_next()
 
-# network.create_encoder()
+network.create_encoder(input_image)

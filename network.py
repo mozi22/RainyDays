@@ -26,7 +26,10 @@ def convrelu2(name,inputs, filters, kernel_size, stride, activation=None):
 
     return tmp_x
 
-
+def myLeakyRelu(x):
+    """Leaky ReLU with leak factor 0.1"""
+    # return tf.maximum(0.1*x,x)
+    return sops.leaky_relu(x, leak=0.2)
 
 
 def create_encoder(input_image):
