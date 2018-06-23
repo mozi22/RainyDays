@@ -2,14 +2,14 @@ import tensorflow as tf
 
 def _parse_function(filename, label):
   r_image_string = tf.read_file(filename)
-  r_image_decoded = tf.image.decode_image(r_image_string,channels=3)
-  r_image_resized = tf.image.resize_image_with_crop_or_pad(r_image_decoded, 256, 256)
+  r_image_decoded = tf.image.decode_jpeg(r_image_string,channels=3)
+  r_image_decoded = tf.reshape(r_image_decoded,[256,256,3])
 
   s_image_string = tf.read_file(label)
-  s_image_decoded = tf.image.decode_image(s_image_string)
-  s_image_resized = tf.image.resize_image_with_crop_or_pad(s_image_decoded, 256, 256)
+  s_image_decoded = tf.image.decode_jpeg(s_image_string,channels=3)
+  s_image_decoded = tf.reshape(s_image_decoded,[256,256,3])
 
-  return r_image_resized, s_image_resized
+  return r_image_decoded, s_image_decoded
 
 
 def parse():
