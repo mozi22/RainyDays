@@ -33,7 +33,7 @@ def myLeakyRelu(x):
     return sops.leaky_relu(x, leak=0.2)
 
 
-def create_encoder(input_image):
+def create_network(input_image):
 
     with tf.variable_scope('down_convs', reuse=tf.AUTO_REUSE):
 
@@ -50,7 +50,6 @@ def create_encoder(input_image):
 
         dense_slice_shape = conv4_1.get_shape().as_list()
 
-        print(dense_slice_shape)
         units = 1
         for i in range(1,len(dense_slice_shape)):
             units *= dense_slice_shape[i]
@@ -62,7 +61,7 @@ def create_encoder(input_image):
                 name='dense5'
         )
 
-        z = 100
+        z = 768
 
         # mean latent vector
         z_mu = tf.layers.dense(dense5,units=z)
@@ -75,3 +74,4 @@ def create_encoder(input_image):
 
         # adding up mean, variance with fixed normal distribution
         z = z_mu + tf.sqrt(tf.exp(z_sigma)) * eps
+
