@@ -49,8 +49,8 @@ def create_encoder(input_image):
         conv4_1 = convrelu2(name='conv4_1', inputs=conv4, filters=128, kernel_size=3, stride=1,activation=myLeakyRelu)
 
         dense_slice_shape = conv4_1.get_shape().as_list()
-        dense_slice_shape[1] = 96
 
+        print(dense_slice_shape)
         units = 1
         for i in range(1,len(dense_slice_shape)):
             units *= dense_slice_shape[i]
@@ -61,3 +61,17 @@ def create_encoder(input_image):
                 activation=myLeakyRelu,
                 name='dense5'
         )
+
+        z = 100
+
+        # mean latent vector
+        z_mu = tf.layers.dense(dense5,units=z)
+
+        # variance latent vector
+        z_sigma = tf.layers.dense(dense5,units=z)
+
+        # normal distribution 
+        eps = tf.random_normal(shape=tf.shape(z_sigma),mean=0, stddev=1, dtype=tf.float32)
+
+        # adding up mean, variance with fixed normal distribution
+        z = z_mu + tf.sqrt(tf.exp(z_sigma)) * eps
