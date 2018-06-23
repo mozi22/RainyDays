@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+RainRemoval/
+__pycache__/
+information/
 # Distribution / packaging
 .Python
 build/
