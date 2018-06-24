@@ -27,6 +27,42 @@ def convrelu2(name,inputs, filters, kernel_size, stride, activation=None):
 
     return tmp_x
 
+def _refine(inp, num_outputs, upsampled_prediction=None, features_direct=None,name=None):
+    """ Generates the concatenation of 
+         - the previous features used to compute the flow/depth
+         - the upsampled previous flow/depth
+         - the direct features that already have the correct resolution
+
+    inp: Tensor
+        The features that have been used before to compute flow/depth
+
+    num_outputs: int 
+        number of outputs for the upconvolution of 'features'
+
+    upsampled_prediction: Tensor
+        The upsampled flow/depth prediction
+
+    features_direct: Tensor
+        The direct features which already have the spatial output resolution
+    """
+    upsampled_features = tf.layers.conv2d_transpose(
+        inputs=inp,
+        filters=num_outputs,
+        kernel_size=4,
+        strides=2,
+        padding='same',
+        activation=myLeakyRelu,
+        name="upconv"
+    )
+
+
+
+
+    inputs = [upsampled_features, features_direct, upsampled_prediction]
+    concat_inputs = [ x for x in inputs if not x is None ]
+
+    return tf.concat(concat_inputs, axis=3)
+
 def myLeakyRelu(x):
     """Leaky ReLU with leak factor 0.1"""
     # return tf.maximum(0.1*x,x)
@@ -47,6 +83,7 @@ def create_network(input_image,isTrain=True):
         conv5 = convrelu2(name='conv5', inputs=conv4, filters=256, kernel_size=3, stride=2,activation=myLeakyRelu)
 
 
+        print(conv5)
         dense_slice_shape = conv5.get_shape().as_list()
 
         units = 2000
@@ -99,7 +136,8 @@ def create_network(input_image,isTrain=True):
         lrelu5 = myLeakyRelu(tf.layers.batch_normalization(deconv5, training=isTrain))
 
         deconv6 = tf.layers.conv2d_transpose(lrelu5, 3, [5, 5], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        lrelu6 = myLeakyRelu(tf.layers.batch_normalization(deconv6, training=isTrain))
 
-        o = tf.nn.tanh(deconv6) 
+        # o = tf.nn.sigmoid(deconv6) 
 
-        return o, z_mu, z_sigma
+        return lrelu6, z_mu, z_sigma

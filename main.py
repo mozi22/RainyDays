@@ -67,6 +67,7 @@ train_summaries.append(tf.summary.scalar('kl_loss',loss_kl))
 train_summaries.append(tf.summary.scalar('total_loss',total_loss))
 train_summaries.append(tf.summary.image('input_image',input_image))
 train_summaries.append(tf.summary.image('resulting_image',resulting_image))
+train_summaries.append(tf.summary.image('resulting_image_resized',input_image_resized))
 train_summaries.append(tf.summary.image('predicted_image',prediction))
 
 for grad, var in grads:
