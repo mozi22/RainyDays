@@ -33,9 +33,9 @@ def myLeakyRelu(x):
     return sops.leaky_relu(x, leak=0.2)
 
 
-def create_network(input_image):
+def create_network(input_image,isTrain=True):
 
-    with tf.variable_scope('down_convs', reuse=tf.AUTO_REUSE):
+    with tf.variable_scope('vae'):
 
         conv0 = convrelu2(name='conv0', inputs=input_image, filters=16, kernel_size=5, stride=1,activation=myLeakyRelu)
         conv1 = convrelu2(name='conv1', inputs=conv0, filters=16, kernel_size=5, stride=2,activation=myLeakyRelu)
@@ -61,7 +61,7 @@ def create_network(input_image):
                 name='dense5'
         )
 
-        z = 768
+        z = 100
 
         # mean latent vector
         z_mu = tf.layers.dense(dense5,units=z)
@@ -75,3 +75,32 @@ def create_network(input_image):
         # adding up mean, variance with fixed normal distribution
         z = z_mu + tf.sqrt(tf.exp(z_sigma)) * eps
 
+        # reshape [4,100] to [4,1,1,100] to pass it to the conv_transpose
+        reshaped_layer = tf.reshape(z,[z.get_shape().as_list()[0],1,1,100])
+
+        w_init = tf.truncated_normal_initializer(mean=0.0, stddev=0.02)
+        b_init = tf.constant_initializer(0.0)
+
+
+        deconv1 = tf.layers.conv2d_transpose(reshaped_layer, 256, [7, 7], strides=(1, 1), padding='valid', kernel_initializer=w_init, bias_initializer=b_init)
+        lrelu1 = myLeakyRelu(tf.layers.batch_normalization(deconv1, training=isTrain))
+
+        # 2nd hidden layer
+        deconv2 = tf.layers.conv2d_transpose(lrelu1, 256, [5, 5], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        lrelu2 = myLeakyRelu(tf.layers.batch_normalization(deconv2, training=isTrain))
+
+        # 3rd hidden layer
+        deconv3 = tf.layers.conv2d_transpose(lrelu2, 128, [5, 5], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        lrelu3 = myLeakyRelu(tf.layers.batch_normalization(deconv3, training=isTrain))
+
+        deconv4 = tf.layers.conv2d_transpose(lrelu3, 128, [5, 5], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        lrelu4 = myLeakyRelu(tf.layers.batch_normalization(deconv4, training=isTrain))
+
+        deconv5 = tf.layers.conv2d_transpose(lrelu4, 64, [5, 5], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        lrelu5 = myLeakyRelu(tf.layers.batch_normalization(deconv5, training=isTrain))
+
+        deconv6 = tf.layers.conv2d_transpose(lrelu5, 3, [5, 5], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+
+        o = tf.nn.tanh(deconv6) 
+
+        return o, z_mu, z_sigma
