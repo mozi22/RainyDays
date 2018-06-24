@@ -11,6 +11,9 @@ def _parse_function(filename, label):
   s_image_decoded = tf.reshape(s_image_decoded,[256,256,3])
   s_image_decoded = tf.image.convert_image_dtype(s_image_decoded,tf.float32)
 
+  r_image_decoded = tf.divide(r_image_decoded,[255])
+  s_image_decoded = tf.divide(s_image_decoded,[255])
+
   return r_image_decoded, s_image_decoded
 
 
@@ -37,7 +40,7 @@ def parse():
   sunny_filenames = tf.constant(sunny_files)
 
   dataset = tf.data.Dataset.from_tensor_slices((rainy_filenames, sunny_filenames))
-  dataset = dataset.map(_parse_function).shuffle(buffer_size=50).apply(tf.contrib.data.batch_and_drop_remainder(4))
+  dataset = dataset.map(_parse_function).repeat().shuffle(buffer_size=50).apply(tf.contrib.data.batch_and_drop_remainder(4))
   # dataset = dataset.prefetch(4)
 
   return dataset
