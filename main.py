@@ -28,7 +28,8 @@ loss_recon = losses_helper.reconstruction_loss(prediction,input_image_resized)
 loss_kl = losses_helper.KL_divergence_loss(z_mu,z_sigma)
 total_loss = tf.reduce_mean(loss_recon + loss_kl)
 
-
+loss_recon = tf.reduce_mean(loss_recon)
+loss_kl = tf.reduce_mean(loss_kl)
 
 ####### initialize optimizer #######
 
@@ -65,9 +66,8 @@ train_summaries.append(tf.summary.histogram('prediction',prediction))
 train_summaries.append(tf.summary.histogram('gt',input_image_resized))
 train_summaries.append(tf.summary.scalar('kl_loss',loss_kl))
 train_summaries.append(tf.summary.scalar('total_loss',total_loss))
-train_summaries.append(tf.summary.image('input_image',input_image))
+train_summaries.append(tf.summary.image('input_image',input_image_resized))
 train_summaries.append(tf.summary.image('resulting_image',resulting_image))
-train_summaries.append(tf.summary.image('resulting_image_resized',input_image_resized))
 train_summaries.append(tf.summary.image('predicted_image',prediction))
 
 for grad, var in grads:
