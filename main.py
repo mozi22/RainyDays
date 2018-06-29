@@ -1,4 +1,5 @@
 
+from tensorflow.contrib.tensorboard.plugins import projector
 import network
 import input_pipeline
 import tensorflow as tf
@@ -8,11 +9,34 @@ import losses_helper
 import os
 from datetime import datetime
 
+
+################## embedding ##################
+def generate_embedding(embedding_var):
+
+	# Format: tensorflow/contrib/tensorboard/plugins/projector/projector_config.proto
+	config = projector.ProjectorConfig()
+
+	# You can add multiple embeddings. Here we add only one.
+	embedding = config.embeddings.add()
+	embedding.tensor_name = embedding_var.name
+	# Link this tensor to its metadata file (e.g. labels).
+	embedding.metadata_path = os.path.join(ckpt_folder, 'metadata.tsv')
+
+	# Use the same LOG_DIR where you stored your checkpoint.
+
+	# The next line writes a projector_config.pbtxt in the LOG_DIR. TensorBoard will
+	# read this file during startup.
+	projector.visualize_embeddings(summary_writer, config)
+################## embedding ##################
+
+
+
+
 dataset = input_pipeline.parse()
 iterator = dataset.make_initializable_iterator()
 
-discriminator_on = False
-ckpt_folder = './ckpt/bigger_latent_space'
+discriminator_on = True
+ckpt_folder = './ckpt/tester'
 
 ####### get input #######
 input_image, resulting_image = iterator.get_next()
@@ -20,7 +44,7 @@ input_image, resulting_image = iterator.get_next()
 
 
 ####### make prediction #######
-prediction, z_mu, z_sigma = network.create_network(input_image)
+prediction, z_mu, z_sigma, z_latent = network.create_network(input_image)
 
 ####### define losses #######
 
@@ -31,22 +55,23 @@ loss_recon = losses_helper.reconstruction_loss(prediction,input_image_resized)
 loss_kl = losses_helper.KL_divergence_loss(z_mu,z_sigma)
 
 loss_recon = tf.reduce_mean(loss_recon)
-loss_kl = tf.reduce_mean(loss_kl)
+loss_kl = tf.reduce_mean(loss_kl) * 3000
 
 total_loss = tf.reduce_mean(loss_recon + loss_kl)
 
 ####### gan loss #######
 
-real_d, conv_real  = network.discriminator(input_image_resized,True)
-fake_d, conv_fake = network.discriminator(prediction,True,True)
+if discriminator_on == True:
+	real_d, conv_real  = network.discriminator(input_image_resized,True)
+	fake_d, conv_fake = network.discriminator(prediction,True,True)
 
-g_total_loss, d_total_loss = losses_helper.gan_loss(fake_d,real_d,conv_real,conv_fake)
+	g_total_loss, d_total_loss = losses_helper.gan_loss(fake_d,real_d,conv_real,conv_fake)
 
-total_loss = total_loss * 100 + g_total_loss
+	total_loss = g_total_loss
 
 ####### initialize optimizer #######
 
-MAX_ITERATIONS = 50000
+MAX_ITERATIONS = 10000
 alternate_global_step = tf.placeholder(tf.int32)
 
 global_step = tf.get_variable(
@@ -64,18 +89,25 @@ if discriminator_on == True:
 
 
 t_vars = tf.trainable_variables()
-d_vars = [var for var in t_vars if 'dis' in var.name]
-g_vars = [var for var in t_vars if 'vae' in var.name]
 
 
-opt = tf.train.AdamOptimizer(learning_rate)
-grads = opt.compute_gradients(total_loss,var_list=g_vars)
-apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
 
 if discriminator_on == True:
+	d_vars = [var for var in t_vars if 'dis' in var.name]
 	opt_d = tf.train.AdamOptimizer(learning_rate_d)
 	d_grads = opt_d.compute_gradients(d_total_loss,var_list=d_vars)
-	apply_gradient_op_d = opt.apply_gradients(d_grads, global_step=global_step)
+	apply_gradient_op_d = opt_d.apply_gradients(d_grads, global_step=global_step)
+
+
+
+
+
+with tf.control_dependencies([apply_gradient_op_d]):
+	g_vars = [var for var in t_vars if 'vae' in var.name]
+	opt = tf.train.AdamOptimizer(learning_rate)
+	grads = opt.compute_gradients(total_loss,var_list=g_vars)
+	apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
+
 
 # Track the moving averages of all trainable variables.
 variable_averages = tf.train.ExponentialMovingAverage(
@@ -95,8 +127,11 @@ if discriminator_on == True:
 train_summaries = []
 
 train_summaries.append(tf.summary.scalar('recon_loss',loss_recon))
-train_summaries.append(tf.summary.scalar('g_loss',g_total_loss))
-train_summaries.append(tf.summary.scalar('d_loss',d_total_loss))
+
+if discriminator_on == True:
+	train_summaries.append(tf.summary.scalar('g_loss',g_total_loss))
+	train_summaries.append(tf.summary.scalar('d_loss',d_total_loss))
+
 train_summaries.append(tf.summary.histogram('prediction',prediction))
 train_summaries.append(tf.summary.histogram('gt',input_image_resized))
 train_summaries.append(tf.summary.scalar('kl_loss',loss_kl))
@@ -130,7 +165,9 @@ loop_start = tf.train.global_step(sess, global_step)
 loop_stop = loop_start + MAX_ITERATIONS
 
 summary_writer = tf.summary.FileWriter(ckpt_folder, sess.graph)
-
+# generate_embedding(z_mu)
+# generate_embedding(z_sigma)
+# generate_embedding(z_latent)
 
 first_iteration = True
 iteration = 0
@@ -172,3 +209,9 @@ for step in range(loop_start,loop_stop):
 	iteration += 1
 
 summary_writer.close()
+
+
+
+
+
+

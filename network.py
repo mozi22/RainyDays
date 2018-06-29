@@ -113,8 +113,8 @@ def create_network(input_image,isTrain=True):
 
         conv3 = convrelu2(name='conv3', inputs=conv2, filters=64, kernel_size=3, stride=2,activation=myLeakyRelu)
 
-        conv4 = convrelu2(name='conv4', inputs=conv3, filters=128, kernel_size=3, stride=2,activation=myLeakyRelu)
-        conv5 = convrelu2(name='conv5', inputs=conv4, filters=256, kernel_size=3, stride=2,activation=myLeakyRelu)
+        conv4 = convrelu2(name='conv4', inputs=conv3, filters=128, kernel_size=2, stride=2,activation=myLeakyRelu)
+        conv5 = convrelu2(name='conv5', inputs=conv4, filters=256, kernel_size=2, stride=2,activation=myLeakyRelu)
 
 
         dense_slice_shape = conv5.get_shape().as_list()
@@ -173,13 +173,14 @@ def create_network(input_image,isTrain=True):
         # lrelu5 = myLeakyRelu(tf.layers.batch_normalization(deconv5, training=isTrain))
         lrelu5 = myLeakyRelu(deconv5)
 
-        deconv6 = tf.layers.conv2d_transpose(lrelu5, 64, [5, 5], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
-        lrelu6 = myLeakyRelu(tf.layers.batch_normalization(deconv6, training=isTrain))
+        deconv6 = tf.layers.conv2d_transpose(lrelu5, 64, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        # lrelu6 = myLeakyRelu(tf.layers.batch_normalization(deconv6, training=isTrain))
+        lrelu6 = myLeakyRelu(deconv6)
         # lrelu6 = tf.nn.sigmoid(deconv6)
 
         prediction = predict_final_image(lrelu6)
 
-        return prediction, z_mu, z_sigma
+        return prediction, z_mu, z_sigma, z_latent
 
 
 
@@ -204,7 +205,7 @@ def discriminator(input, is_train=True, reuse=False):
         conv3 = tf.layers.batch_normalization(conv3,training=is_train)
         conv3 =myLeakyRelu(conv3)
 
-        conv4 = convrelu2(name='conv4', inputs=conv3, filters=512, kernel_size=3, stride=2,activation=None)
+        conv4 = convrelu2(name='conv4', inputs=conv3, filters=512, kernel_size=2, stride=2,activation=None)
         conv4 = tf.layers.batch_normalization(conv4,training=is_train)
         # conv4_r =myLeakyRelu(conv4_b)
 
