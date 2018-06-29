@@ -54,7 +54,7 @@ input_image_resized = tf.image.resize_images(input_image,[224,224],method=tf.ima
 loss_recon = losses_helper.reconstruction_loss(prediction,input_image_resized)
 loss_kl = losses_helper.KL_divergence_loss(z_mu,z_sigma)
 
-loss_recon = tf.reduce_mean(loss_recon)
+loss_recon = tf.reduce_mean(loss_recon) * 100
 loss_kl = tf.reduce_mean(loss_kl) * 3000
 
 total_loss = tf.reduce_mean(loss_recon + loss_kl)
@@ -67,7 +67,7 @@ if discriminator_on == True:
 
 	g_total_loss, d_total_loss = losses_helper.gan_loss(fake_d,real_d,conv_real,conv_fake)
 
-	total_loss = g_total_loss
+	total_loss = g_total_loss + total_loss 
 
 ####### initialize optimizer #######
 
@@ -108,17 +108,21 @@ with tf.control_dependencies([apply_gradient_op_d]):
 	grads = opt.compute_gradients(total_loss,var_list=g_vars)
 	apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
 
-
+ 
 # Track the moving averages of all trainable variables.
-variable_averages = tf.train.ExponentialMovingAverage(
+variable_averages_d = tf.train.ExponentialMovingAverage(
     0.9999, global_step)
-variables_averages_op = variable_averages.apply(tf.trainable_variables())
+variables_averages_op_d = variable_averages_d.apply(d_vars)
+
+variable_averages_g = tf.train.ExponentialMovingAverage(
+    0.9999, global_step)
+variables_averages_op_g = variable_averages_g.apply(g_vars)
 
 # Group all updates to into a single train op.
-train_op = tf.group(apply_gradient_op, variables_averages_op)
+train_op = tf.group(apply_gradient_op, variables_averages_op_g)
 
 if discriminator_on == True:
-	train_op_d = tf.group(apply_gradient_op_d, variables_averages_op)
+	train_op_d = tf.group(apply_gradient_op_d, variables_averages_op_d)
 
 
 
@@ -126,7 +130,7 @@ if discriminator_on == True:
 
 train_summaries = []
 
-train_summaries.append(tf.summary.scalar('recon_loss',loss_recon))
+# train_summaries.append(tf.summary.scalar('recon_loss',loss_recon))
 
 if discriminator_on == True:
 	train_summaries.append(tf.summary.scalar('g_loss',g_total_loss))
@@ -134,8 +138,8 @@ if discriminator_on == True:
 
 train_summaries.append(tf.summary.histogram('prediction',prediction))
 train_summaries.append(tf.summary.histogram('gt',input_image_resized))
-train_summaries.append(tf.summary.scalar('kl_loss',loss_kl))
-train_summaries.append(tf.summary.scalar('total_loss',total_loss))
+# train_summaries.append(tf.summary.scalar('kl_loss',loss_kl))
+# train_summaries.append(tf.summary.scalar('total_loss',total_loss))
 train_summaries.append(tf.summary.image('input_image',input_image_resized))
 train_summaries.append(tf.summary.image('resulting_image',resulting_image))
 train_summaries.append(tf.summary.image('predicted_image',prediction))
