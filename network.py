@@ -119,7 +119,7 @@ def create_network(input_image,isTrain=True):
 
         dense_slice_shape = conv5.get_shape().as_list()
 
-        units = 2000
+        units = 5000
 
         dense5 = tf.layers.dense(
                 tf.contrib.layers.flatten(tf.slice(conv5, [0,0,0,0], dense_slice_shape)),
@@ -139,10 +139,10 @@ def create_network(input_image,isTrain=True):
         eps = tf.random_normal(shape=tf.shape(z_sigma),mean=0, stddev=1, dtype=tf.float32)
 
         # adding up mean, variance with fixed normal distribution
-        z = z_mu + (z_sigma * eps)
+        z_latent = z_mu + (z_sigma * eps)
 
         # reshape [4,100] to [4,1,1,100] to pass it to the conv_transpose
-        reshaped_layer = tf.reshape(z,[z.get_shape().as_list()[0],1,1,100])
+        reshaped_layer = tf.reshape(z_latent,[z_latent.get_shape().as_list()[0],1,1,z])
 
         w_init = tf.truncated_normal_initializer(stddev=0.02)
         b_init = tf.constant_initializer(0.0)
@@ -180,3 +180,47 @@ def create_network(input_image,isTrain=True):
         prediction = predict_final_image(lrelu6)
 
         return prediction, z_mu, z_sigma
+
+
+
+def discriminator(input, is_train=True, reuse=False):
+    with tf.variable_scope('discriminator') as scope:
+        if reuse:
+            scope.reuse_variables()
+
+        conv0 = convrelu2(name='conv0', inputs=input, filters=32, kernel_size=5, stride=2,activation=None)
+        conv0 = tf.layers.batch_normalization(conv0,training=is_train)
+        conv0 =myLeakyRelu(conv0)
+
+        conv1 = convrelu2(name='conv1', inputs=conv0, filters=64, kernel_size=3, stride=2,activation=None)
+        conv1 = tf.layers.batch_normalization(conv1,training=is_train)
+        conv1 =myLeakyRelu(conv1)
+
+        conv2 = convrelu2(name='conv2', inputs=conv1, filters=128, kernel_size=3, stride=2,activation=None)
+        conv2 = tf.layers.batch_normalization(conv2,training=is_train)
+        conv2 =myLeakyRelu(conv2)
+
+        conv3 = convrelu2(name='conv3', inputs=conv2, filters=256, kernel_size=3, stride=2,activation=None)
+        conv3 = tf.layers.batch_normalization(conv3,training=is_train)
+        conv3 =myLeakyRelu(conv3)
+
+        conv4 = convrelu2(name='conv4', inputs=conv3, filters=512, kernel_size=3, stride=2,activation=None)
+        conv4 = tf.layers.batch_normalization(conv4,training=is_train)
+        # conv4_r =myLeakyRelu(conv4_b)
+
+        # dim = int(np.prod(conv3_r.get_shape()[1:]))
+        # fc1 = tf.reshape(conv3_r, shape=[-1, dim], name='fc1')
+      
+        
+        # w2 = tf.get_variable('w2', shape=[fc1.shape[-1], 1], dtype=tf.float32,
+        #                      initializer=tf.truncated_normal_initializer(stddev=0.02))
+        # b2 = tf.get_variable('b2', shape=[1], dtype=tf.float32,
+        #                      initializer=tf.constant_initializer(0.0))
+
+        # # wgan just get rid of the sigmoid
+        # logits = tf.add(tf.matmul(fc1, w2), b2, name='logits')
+
+        logits = tf.nn.sigmoid(conv4)
+
+        # dcgan
+        return logits, conv2 #, acted_out
