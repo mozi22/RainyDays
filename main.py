@@ -36,7 +36,7 @@ dataset = input_pipeline.parse()
 iterator = dataset.make_initializable_iterator()
 
 discriminator_on = False
-ckpt_folder = './ckpt/vae_latent_300'
+ckpt_folder = './ckpt/vae_300_latent_complete_units'
 
 ####### get input #######
 input_image, resulting_image = iterator.get_next()
@@ -71,7 +71,7 @@ if discriminator_on == True:
 
 ####### initialize optimizer #######
 
-MAX_ITERATIONS = 50000
+MAX_ITERATIONS = 100000
 alternate_global_step = tf.placeholder(tf.int32)
 
 global_step = tf.get_variable(
@@ -182,9 +182,15 @@ folder_name = ckpt_folder.split('/')[-1]
 for step in range(loop_start,loop_stop):
 
 
-	_ , loss = sess.run([train_op,total_loss],feed_dict={
-			alternate_global_step: iteration
-	})
+	if discriminator_on == True:
+		generator_iterations = 1
+	else:
+		generator_iterations = 1
+
+	for i in range(generator_iterations):
+		_ , loss = sess.run([train_op,total_loss],feed_dict={
+				alternate_global_step: iteration
+		})
 
 	if discriminator_on == True:
 		_ , loss_d = sess.run([train_op_d,d_total_loss],feed_dict={

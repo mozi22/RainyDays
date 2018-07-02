@@ -115,7 +115,7 @@ def create_network(input_image,isTrain=True):
 
         conv4 = convrelu2(name='conv4', inputs=conv3, filters=128, kernel_size=2, stride=2,activation=myLeakyRelu)
         conv5 = convrelu2(name='conv5', inputs=conv4, filters=256, kernel_size=2, stride=2,activation=myLeakyRelu)
-        conv6 = convrelu2(name='conv6', inputs=conv5, filters=256, kernel_size=2, stride=2,activation=myLeakyRelu)
+        conv6 = convrelu2(name='conv6', inputs=conv5, filters=512, kernel_size=2, stride=2,activation=myLeakyRelu)
 
         # print(conv6)
 
