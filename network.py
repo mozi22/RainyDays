@@ -107,27 +107,33 @@ def create_network(input_image,isTrain=True):
 
     with tf.variable_scope('vae'):
 
-        conv1 = convrelu2(name='conv1', inputs=input_image, filters=16, kernel_size=5, stride=1,activation=myLeakyRelu)
+        conv1 = convrelu2(name='conv1', inputs=input_image, filters=32, kernel_size=5, stride=1,activation=myLeakyRelu)
 
-        conv2 = convrelu2(name='conv2', inputs=conv1, filters=32, kernel_size=3, stride=2,activation=myLeakyRelu)
+        conv2 = convrelu2(name='conv2', inputs=conv1, filters=64, kernel_size=3, stride=2,activation=myLeakyRelu)
 
-        conv3 = convrelu2(name='conv3', inputs=conv2, filters=64, kernel_size=3, stride=2,activation=myLeakyRelu)
+        conv3 = convrelu2(name='conv3', inputs=conv2, filters=128, kernel_size=3, stride=2,activation=myLeakyRelu)
 
         conv4 = convrelu2(name='conv4', inputs=conv3, filters=128, kernel_size=2, stride=2,activation=myLeakyRelu)
         conv5 = convrelu2(name='conv5', inputs=conv4, filters=256, kernel_size=2, stride=2,activation=myLeakyRelu)
+        conv6 = convrelu2(name='conv6', inputs=conv5, filters=256, kernel_size=2, stride=2,activation=myLeakyRelu)
 
+        # print(conv6)
 
-        dense_slice_shape = conv5.get_shape().as_list()
+        dense_slice_shape = conv6.get_shape().as_list()
 
-        units = 5000
+        dense_slice_shape[-1] = 96
+
+        units = 1
+        for i in range(1,len(dense_slice_shape)):
+            units *= dense_slice_shape[i]
 
         dense5 = tf.layers.dense(
-                tf.contrib.layers.flatten(tf.slice(conv5, [0,0,0,0], dense_slice_shape)),
+                tf.contrib.layers.flatten(tf.slice(conv6, [0,0,0,0], dense_slice_shape)),
                 units=units,
                 activation=myLeakyRelu,
                 name='dense5'
         )
-        z = 100
+        z = 300
 
         # mean latent vector
         z_mu = tf.layers.dense(dense5,units=z)
@@ -190,22 +196,22 @@ def discriminator(input, is_train=True, reuse=False):
             scope.reuse_variables()
 
         conv0 = convrelu2(name='conv0', inputs=input, filters=32, kernel_size=5, stride=2,activation=None)
-        # conv0 = tf.layers.batch_normalization(conv0,training=is_train)
+        conv0 = tf.layers.batch_normalization(conv0,training=is_train)
         conv0 =myLeakyRelu(conv0)
 
         conv1 = convrelu2(name='conv1', inputs=conv0, filters=64, kernel_size=3, stride=2,activation=None)
-        # conv1 = tf.layers.batch_normalization(conv1,training=is_train)
+        conv1 = tf.layers.batch_normalization(conv1,training=is_train)
         conv1 =myLeakyRelu(conv1)
 
         conv2 = convrelu2(name='conv2', inputs=conv1, filters=128, kernel_size=3, stride=2,activation=None)
-        # conv2 = tf.layers.batch_normalization(conv2,training=is_train)
+        conv2 = tf.layers.batch_normalization(conv2,training=is_train)
         conv2 =myLeakyRelu(conv2)
 
         conv3 = convrelu2(name='conv3', inputs=conv2, filters=256, kernel_size=3, stride=2,activation=None)
-        # conv3 = tf.layers.batch_normalization(conv3,training=is_train)
+        conv3 = tf.layers.batch_normalization(conv3,training=is_train)
         conv3 =myLeakyRelu(conv3)
 
-        conv4 = convrelu2(name='conv4', inputs=conv3, filters=512, kernel_size=2, stride=2,activation=None)
+        conv4 = convrelu2(name='conv4', inputs=conv3, filters=512, kernel_size=3, stride=2,activation=None)
         # conv4 = tf.layers.batch_normalization(conv4,training=is_train)
         # conv4_r =myLeakyRelu(conv4_b)
 
