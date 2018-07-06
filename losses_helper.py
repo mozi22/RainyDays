@@ -25,7 +25,7 @@ def KL_divergence_loss(z_mu,z_log_sigma_sq):
 
 		latent_loss = -tf.reduce_mean(0.5 * tf.reduce_sum(1 + z_log_sigma_sq - z_mu**2 - tf.exp(z_log_sigma_sq), axis=1))
 		latent_loss = sops.replace_nonfinite(latent_loss)
-		latent_loss = tf.losses.compute_weighted_loss(latent_loss,weights=1500)
+		latent_loss = tf.losses.compute_weighted_loss(latent_loss,weights=300)
 
 	return latent_loss
 

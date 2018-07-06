@@ -14,6 +14,10 @@ def _parse_function(filename, label):
   r_image_decoded = tf.divide(r_image_decoded,[255])
   s_image_decoded = tf.divide(s_image_decoded,[255])
 
+
+  r_image_decoded = tf.image.resize_images(r_image_decoded,[128,128])
+  s_image_decoded = tf.image.resize_images(s_image_decoded,[128,128])
+
   return r_image_decoded, s_image_decoded
 
 
