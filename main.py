@@ -48,7 +48,7 @@ prediction, z_mu, z_sigma, z_latent = network.create_network(input_image,discrim
 ####### define losses #######
 
 # resize input_image for calculating reconstruction loss on a slightly smaller image.
-resulting_image_resized = tf.image.resize_images(input_image,[28,28],method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+resulting_image_resized = tf.image.resize_images(input_image,[64,64],method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
 loss_recon = losses_helper.reconstruction_loss_l2(prediction,resulting_image_resized)
 loss_kl = losses_helper.KL_divergence_loss(z_mu,z_sigma)
@@ -69,7 +69,7 @@ if discriminator_on == True:
 
 ####### initialize optimizer #######
 
-MAX_ITERATIONS = 50000
+MAX_ITERATIONS = 10000
 alternate_global_step = tf.placeholder(tf.int32)
 
 global_step = tf.get_variable(
@@ -77,8 +77,8 @@ global_step = tf.get_variable(
     initializer=tf.constant_initializer(0), trainable=False)
 
 learning_rate = tf.train.polynomial_decay(0.0001, alternate_global_step,
-                                          MAX_ITERATIONS, 0.0000008,
-                                          power=4)
+                                          MAX_ITERATIONS, 0.000001,
+                                          power=3)
 
 if discriminator_on == True:
 	learning_rate_d = tf.train.polynomial_decay(0.0001, alternate_global_step,
@@ -168,7 +168,7 @@ init = tf.global_variables_initializer()
 sess = tf.Session()
 sess.run(init)
 sess.run(iterator.initializer)
-saver.restore(sess,tf.train.latest_checkpoint(ckpt_folder+'/'))
+# saver.restore(sess,tf.train.latest_checkpoint(ckpt_folder+'/'))
 
 loop_start = tf.train.global_step(sess, global_step)
 loop_stop = loop_start + MAX_ITERATIONS

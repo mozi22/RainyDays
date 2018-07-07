@@ -141,19 +141,23 @@ def create_network(input_image,gan_enabled=False):
 
         dense_slice_shape = conv3.get_shape().as_list()
 
-        dense_slice_shape[-1] = 96
+        # dense_slice_shape[-1] = 96
 
-        units = 1
-        for i in range(1,len(dense_slice_shape)):
-            units *= dense_slice_shape[i]
+        # units = 1
+        # for i in range(1,len(dense_slice_shape)):
+        #     units *= dense_slice_shape[i]
 
-        dense5 = tf.layers.dense(
-                tf.contrib.layers.flatten(tf.slice(conv3, [0,0,0,0], dense_slice_shape)),
-                units=units,
-                activation=None,
-                name='dense5'
-        )
+        # dense5 = tf.layers.dense(
+        #         tf.contrib.layers.flatten(tf.slice(conv3, [0,0,0,0], dense_slice_shape)),
+        #         units=units,
+        #         activation=None,
+        #         name='dense5'
+        # )
+        print(conv3)
+        dense5 = tf.contrib.layers.flatten(conv3)
+        print(dense5)
         z = 2048
+
 
         # mean latent vector
         z_mu = tf.layers.dense(dense5,units=z)
@@ -167,15 +171,17 @@ def create_network(input_image,gan_enabled=False):
         # adding up mean, variance with fixed normal distribution
         z_latent = z_mu + (z_sigma * eps)
 
+        full_units_layer = tf.contrib.layers.fully_connected(z_latent,dense_slice_shape[1]*dense_slice_shape[2]*dense_slice_shape[3])
+
         # reshape [4,100] to [4,1,1,100] to pass it to the conv_transpose
-        reshaped_layer = tf.reshape(z_latent,[z_latent.get_shape().as_list()[0],1,1,z])
+        reshaped_layer = tf.reshape(full_units_layer,[full_units_layer.get_shape().as_list()[0],8,8,256])
 
         w_init = tf.truncated_normal_initializer(stddev=0.02)
         b_init = tf.constant_initializer(0.0)
 
 
         # 1rd hidden layer
-        deconv1 = tf.layers.conv2d_transpose(reshaped_layer, 256, [7, 7], strides=(1, 1), padding='valid', kernel_initializer=w_init, bias_initializer=b_init)
+        deconv1 = tf.layers.conv2d_transpose(reshaped_layer, 256, [5, 5], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
         # lrelu1 = myLeakyRelu(tf.layers.batch_normalization(deconv1, training=True))
         if gan_enabled == True:
             deconv1 = tf.layers.dropout(deconv1)
@@ -183,7 +189,7 @@ def create_network(input_image,gan_enabled=False):
         lrelu1 = myLeakyRelu(deconv1)
 
         # 2nd hidden layer
-        deconv2 = tf.layers.conv2d_transpose(lrelu1, 128, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        deconv2 = tf.layers.conv2d_transpose(lrelu1, 128, [5, 5], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
         # lrelu2 = myLeakyRelu(tf.layers.batch_normalization(deconv2, training=True))
         if gan_enabled == True:
             deconv2 = tf.layers.dropout(deconv2)
@@ -191,7 +197,7 @@ def create_network(input_image,gan_enabled=False):
         lrelu2 = myLeakyRelu(deconv2)
 
         # 3rd hidden layer
-        deconv3 = tf.layers.conv2d_transpose(lrelu2, 32, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        deconv3 = tf.layers.conv2d_transpose(lrelu2, 32, [5, 5], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
         # lrelu3 = myLeakyRelu(tf.layers.batch_normalization(deconv3, training=True))
         if gan_enabled == True:
             deconv3 = tf.layers.dropout(deconv3)

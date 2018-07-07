@@ -60,7 +60,7 @@ def parse():
   rainy_filenames = tf.constant(rainy_files)
   sunny_filenames = tf.constant(sunny_files)
   dataset = tf.data.Dataset.from_tensor_slices((rainy_filenames, sunny_filenames))
-  dataset = dataset.map(_parse_function).repeat().shuffle(buffer_size=50).apply(tf.contrib.data.batch_and_drop_remainder(4))
+  dataset = dataset.map(_parse_function).repeat().shuffle(buffer_size=50).apply(tf.contrib.data.batch_and_drop_remainder(32))
   # dataset = dataset.prefetch(4)
 
   return dataset
