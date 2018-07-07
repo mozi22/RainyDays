@@ -107,40 +107,39 @@ def create_network(input_image,gan_enabled=False):
 
     with tf.variable_scope('vae'):
 
-        print(input_image)
-        conv1 = convrelu2(name='conv1', inputs=input_image, filters=32, kernel_size=5, stride=1,activation=myLeakyRelu)
+        conv1 = convrelu2(name='conv1', inputs=input_image, filters=64, kernel_size=5, stride=2,activation=myLeakyRelu)
 
         if gan_enabled == True:
             conv1 = tf.layers.dropout(conv1)
 
-        conv2 = convrelu2(name='conv2', inputs=conv1, filters=64, kernel_size=3, stride=2,activation=myLeakyRelu)
+        conv2 = convrelu2(name='conv2', inputs=conv1, filters=128, kernel_size=3, stride=2,activation=myLeakyRelu)
 
         if gan_enabled == True:
             conv2 = tf.layers.dropout(conv2)
 
-        conv3 = convrelu2(name='conv3', inputs=conv2, filters=128, kernel_size=3, stride=2,activation=myLeakyRelu)
+        conv3 = convrelu2(name='conv3', inputs=conv2, filters=256, kernel_size=3, stride=2,activation=myLeakyRelu)
 
         if gan_enabled == True:
             conv3 = tf.layers.dropout(conv3)
 
-        conv4 = convrelu2(name='conv4', inputs=conv3, filters=128, kernel_size=2, stride=2,activation=myLeakyRelu)
+        # conv4 = convrelu2(name='conv4', inputs=conv3, filters=128, kernel_size=2, stride=2,activation=myLeakyRelu)
 
-        if gan_enabled == True:
-            conv4 = tf.layers.dropout(conv4)
+        # if gan_enabled == True:
+        #     conv4 = tf.layers.dropout(conv4)
 
-        conv5 = convrelu2(name='conv5', inputs=conv4, filters=256, kernel_size=2, stride=2,activation=myLeakyRelu)
+        # conv5 = convrelu2(name='conv5', inputs=conv4, filters=256, kernel_size=2, stride=2,activation=myLeakyRelu)
 
-        if gan_enabled == True:
-            conv5 = tf.layers.dropout(conv5)
+        # if gan_enabled == True:
+        #     conv5 = tf.layers.dropout(conv5)
 
-        conv6 = convrelu2(name='conv6', inputs=conv5, filters=512, kernel_size=2, stride=2,activation=myLeakyRelu)
+        # conv6 = convrelu2(name='conv6', inputs=conv5, filters=256, kernel_size=2, stride=2,activation=myLeakyRelu)
 
-        if gan_enabled == True:
-            conv6 = tf.layers.dropout(conv6)
+        # if gan_enabled == True:
+        #     conv6 = tf.layers.dropout(conv6)
 
         # print(conv6)
 
-        dense_slice_shape = conv5.get_shape().as_list()
+        dense_slice_shape = conv3.get_shape().as_list()
 
         dense_slice_shape[-1] = 96
 
@@ -149,12 +148,12 @@ def create_network(input_image,gan_enabled=False):
             units *= dense_slice_shape[i]
 
         dense5 = tf.layers.dense(
-                tf.contrib.layers.flatten(tf.slice(conv5, [0,0,0,0], dense_slice_shape)),
+                tf.contrib.layers.flatten(tf.slice(conv3, [0,0,0,0], dense_slice_shape)),
                 units=units,
-                activation=myLeakyRelu,
+                activation=None,
                 name='dense5'
         )
-        z = 1024
+        z = 2048
 
         # mean latent vector
         z_mu = tf.layers.dense(dense5,units=z)
@@ -176,7 +175,7 @@ def create_network(input_image,gan_enabled=False):
 
 
         # 1rd hidden layer
-        deconv1 = tf.layers.conv2d_transpose(reshaped_layer, 512, [4, 4], strides=(1, 1), padding='valid', kernel_initializer=w_init, bias_initializer=b_init)
+        deconv1 = tf.layers.conv2d_transpose(reshaped_layer, 256, [7, 7], strides=(1, 1), padding='valid', kernel_initializer=w_init, bias_initializer=b_init)
         # lrelu1 = myLeakyRelu(tf.layers.batch_normalization(deconv1, training=True))
         if gan_enabled == True:
             deconv1 = tf.layers.dropout(deconv1)
@@ -184,7 +183,7 @@ def create_network(input_image,gan_enabled=False):
         lrelu1 = myLeakyRelu(deconv1)
 
         # 2nd hidden layer
-        deconv2 = tf.layers.conv2d_transpose(lrelu1, 256, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        deconv2 = tf.layers.conv2d_transpose(lrelu1, 128, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
         # lrelu2 = myLeakyRelu(tf.layers.batch_normalization(deconv2, training=True))
         if gan_enabled == True:
             deconv2 = tf.layers.dropout(deconv2)
@@ -192,38 +191,39 @@ def create_network(input_image,gan_enabled=False):
         lrelu2 = myLeakyRelu(deconv2)
 
         # 3rd hidden layer
-        deconv3 = tf.layers.conv2d_transpose(lrelu2, 256, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        deconv3 = tf.layers.conv2d_transpose(lrelu2, 32, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
         # lrelu3 = myLeakyRelu(tf.layers.batch_normalization(deconv3, training=True))
         if gan_enabled == True:
             deconv3 = tf.layers.dropout(deconv3)
     
         lrelu3 = myLeakyRelu(deconv3)
 
-        # 4rd hidden layer
-        deconv4 = tf.layers.conv2d_transpose(lrelu3, 128, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
-        # lrelu4 = myLeakyRelu(tf.layers.batch_normalization(deconv4, training=True))
-        if gan_enabled == True:
-            deconv4 = tf.layers.dropout(deconv4)
+        # # 4rd hidden layer
+        # deconv4 = tf.layers.conv2d_transpose(lrelu3, 128, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        # # lrelu4 = myLeakyRelu(tf.layers.batch_normalization(deconv4, training=True))
+        # if gan_enabled == True:
+        #     deconv4 = tf.layers.dropout(deconv4)
     
-        lrelu4 = myLeakyRelu(deconv4)
+        # lrelu4 = myLeakyRelu(deconv4)
 
-        # 5rd hidden layer
-        deconv5 = tf.layers.conv2d_transpose(lrelu4, 128, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
-        # lrelu5 = myLeakyRelu(tf.layers.batch_normalization(deconv5, training=True))
-        if gan_enabled == True:
-            deconv5 = tf.layers.dropout(deconv5)
+        # # 5rd hidden layer
+        # deconv5 = tf.layers.conv2d_transpose(lrelu4, 128, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        # # lrelu5 = myLeakyRelu(tf.layers.batch_normalization(deconv5, training=True))
+        # if gan_enabled == True:
+        #     deconv5 = tf.layers.dropout(deconv5)
     
-        lrelu5 = myLeakyRelu(deconv5)
+        # lrelu5 = myLeakyRelu(deconv5)
 
-        deconv6 = tf.layers.conv2d_transpose(lrelu5, 64, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
-        # lrelu6 = myLeakyRelu(tf.layers.batch_normalization(deconv6, training=True))
-        if gan_enabled == True:
-            deconv6 = tf.layers.dropout(deconv6)
+        # deconv6 = tf.layers.conv2d_transpose(lrelu5, 64, [3, 3], strides=(2, 2), padding='same', kernel_initializer=w_init, bias_initializer=b_init)
+        # # lrelu6 = myLeakyRelu(tf.layers.batch_normalization(deconv6, training=True))
+        # if gan_enabled == True:
+        #     deconv6 = tf.layers.dropout(deconv6)
     
-        lrelu6 = myLeakyRelu(deconv6)
+        # lrelu6 = myLeakyRelu(deconv6)
         # lrelu6 = tf.nn.sigmoid(deconv6)
 
-        prediction = predict_final_image(lrelu6)
+        prediction = predict_final_image(lrelu3)
+        print(prediction)
 
         return prediction, z_mu, z_sigma, z_latent
 
@@ -235,23 +235,23 @@ def discriminator(input, is_train=True, reuse=False):
             scope.reuse_variables()
 
         conv0 = convrelu2(name='conv0', inputs=input, filters=32, kernel_size=5, stride=2,activation=None)
-        conv0 = tf.layers.batch_normalization(conv0,training=is_train)
+        # conv0 = tf.layers.batch_normalization(conv0,training=is_train)
         conv0 =myLeakyRelu(conv0)
 
         conv1 = convrelu2(name='conv1', inputs=conv0, filters=64, kernel_size=3, stride=2,activation=None)
-        conv1 = tf.layers.batch_normalization(conv1,training=is_train)
+        # conv1 = tf.layers.batch_normalization(conv1,training=is_train)
         conv1 =myLeakyRelu(conv1)
 
         conv2 = convrelu2(name='conv2', inputs=conv1, filters=128, kernel_size=3, stride=2,activation=None)
-        conv2 = tf.layers.batch_normalization(conv2,training=is_train)
+        # conv2 = tf.layers.batch_normalization(conv2,training=is_train)
         conv2 =myLeakyRelu(conv2)
 
         conv3 = convrelu2(name='conv3', inputs=conv2, filters=256, kernel_size=3, stride=2,activation=None)
-        conv3 = tf.layers.batch_normalization(conv3,training=is_train)
+        # conv3 = tf.layers.batch_normalization(conv3,training=is_train)
         conv3 =myLeakyRelu(conv3)
 
         conv4 = convrelu2(name='conv4', inputs=conv3, filters=512, kernel_size=3, stride=2,activation=None)
-        conv4 = tf.layers.batch_normalization(conv4,training=is_train)
+        # conv4 = tf.layers.batch_normalization(conv4,training=is_train)
         conv4 =myLeakyRelu(conv4)
 
         dim = int(np.prod(conv4.get_shape()[1:]))
@@ -268,6 +268,5 @@ def discriminator(input, is_train=True, reuse=False):
         # dcgan
         acted_out = tf.nn.sigmoid(logits)
 
-        print(acted_out)
         # dcgan
         return acted_out, conv2 #, acted_out

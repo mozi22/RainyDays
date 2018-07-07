@@ -35,8 +35,8 @@ from datetime import datetime
 dataset = input_pipeline.parse()
 iterator = dataset.make_initializable_iterator()
 
-discriminator_on = True
-ckpt_folder = './ckpt/latent_space_with_disc'
+discriminator_on = False
+ckpt_folder = './ckpt/working_copy'
 
 ####### get input #######
 input_image, resulting_image = iterator.get_next()
@@ -44,19 +44,17 @@ input_image, resulting_image = iterator.get_next()
 
 
 ####### make prediction #######
-prediction, z_mu, z_sigma, z_latent = network.create_network(resulting_image,discriminator_on)
-
+prediction, z_mu, z_sigma, z_latent = network.create_network(input_image,discriminator_on)
 ####### define losses #######
 
 # resize input_image for calculating reconstruction loss on a slightly smaller image.
-resulting_image_resized = tf.image.resize_images(resulting_image,[128,128],method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+resulting_image_resized = tf.image.resize_images(input_image,[28,28],method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
 loss_recon = losses_helper.reconstruction_loss_l2(prediction,resulting_image_resized)
 loss_kl = losses_helper.KL_divergence_loss(z_mu,z_sigma)
 
 loss_recon = tf.reduce_mean(loss_recon)
 loss_kl = tf.reduce_mean(loss_kl)
-
 total_loss = tf.reduce_mean(loss_recon + loss_kl)
 
 ####### gan loss #######
@@ -71,7 +69,7 @@ if discriminator_on == True:
 
 ####### initialize optimizer #######
 
-MAX_ITERATIONS = 200000
+MAX_ITERATIONS = 50000
 alternate_global_step = tf.placeholder(tf.int32)
 
 global_step = tf.get_variable(
@@ -79,8 +77,8 @@ global_step = tf.get_variable(
     initializer=tf.constant_initializer(0), trainable=False)
 
 learning_rate = tf.train.polynomial_decay(0.0001, alternate_global_step,
-                                          MAX_ITERATIONS, 0.000001,
-                                          power=3)
+                                          MAX_ITERATIONS, 0.0000008,
+                                          power=4)
 
 if discriminator_on == True:
 	learning_rate_d = tf.train.polynomial_decay(0.0001, alternate_global_step,
@@ -139,11 +137,16 @@ if discriminator_on == True:
 	train_summaries.append(tf.summary.scalar('d_loss',d_total_loss))
 
 train_summaries.append(tf.summary.histogram('prediction',prediction))
-train_summaries.append(tf.summary.histogram('gt',resulting_image_resized))
+train_summaries.append(tf.summary.histogram('gt',input_image))
+train_summaries.append(tf.summary.histogram('z_mu',z_mu))
+train_summaries.append(tf.summary.histogram('z_sigma',z_sigma))
+train_summaries.append(tf.summary.histogram('z_latent',z_latent))
 train_summaries.append(tf.summary.scalar('kl_loss',loss_kl))
+train_summaries.append(tf.summary.scalar('learning_rate',learning_rate))
 train_summaries.append(tf.summary.scalar('total_loss',total_loss))
-train_summaries.append(tf.summary.image('input_image',resulting_image_resized))
-train_summaries.append(tf.summary.image('resulting_image',resulting_image))
+train_summaries.append(tf.summary.image('input_image',input_image))
+
+train_summaries.append(tf.summary.image('resulting_image',resulting_image_resized))
 train_summaries.append(tf.summary.image('predicted_image',prediction))
 
 for grad, var in grads:
@@ -165,7 +168,7 @@ init = tf.global_variables_initializer()
 sess = tf.Session()
 sess.run(init)
 sess.run(iterator.initializer)
-# saver.restore(sess,tf.train.latest_checkpoint(ckpt_folder+'/'))
+saver.restore(sess,tf.train.latest_checkpoint(ckpt_folder+'/'))
 
 loop_start = tf.train.global_step(sess, global_step)
 loop_stop = loop_start + MAX_ITERATIONS
@@ -179,7 +182,7 @@ first_iteration = True
 iteration = 0
 
 folder_name = ckpt_folder.split('/')[-1]
-for step in range(loop_start,loop_stop):
+for step in range(loop_start,loop_stop+1):
 
 
 	if discriminator_on == True:
@@ -209,7 +212,7 @@ for step in range(loop_start,loop_stop):
 		print((format_str % (datetime.now(),step, loss_d, folder_name)))
 		print('')
 
-	if step % 100 == 0:
+	if step % 500 == 0:
 		summmary = sess.run(summary_op, feed_dict={
 			alternate_global_step: iteration
 		})
