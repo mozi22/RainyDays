@@ -30,6 +30,10 @@ from datetime import datetime
 # ################## embedding ##################
 
 
+recon_loss_weight = 100
+kl_loss_weight = 0.1
+
+
 
 
 dataset = input_pipeline.parse()
@@ -44,30 +48,19 @@ input_image, resulting_image = iterator.get_next()
 
 
 ####### make prediction #######
-prediction, z_mu, z_sigma, z_latent = network.create_network(input_image,discriminator_on)
+prediction, latent_space = network.encoder_decoder(input_image,discriminator_on)
 ####### define losses #######
 
 # resize input_image for calculating reconstruction loss on a slightly smaller image.
 resulting_image_resized = tf.image.resize_images(input_image,[64,64],method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
-loss_recon = losses_helper.reconstruction_loss_l2(prediction,resulting_image_resized)
-loss_kl = losses_helper.KL_divergence_loss(z_mu,z_sigma)
+loss_recon = losses_helper.reconstruction_loss_l1(prediction,resulting_image_resized)
+loss_kl = losses_helper.KL_divergence_loss(latent_space)
 
-loss_recon = tf.reduce_mean(loss_recon)
-loss_kl = tf.reduce_mean(loss_kl)
-total_loss = tf.reduce_mean(loss_recon + loss_kl)
+total_vae_loss = loss_recon * recon_loss_weight + loss_kl * kl_loss_weight
 
-####### gan loss #######
 
-if discriminator_on == True:
-	real_d, conv_real  = network.discriminator(resulting_image_resized,True)
-	fake_d, conv_fake = network.discriminator(prediction,True,True)
 
-	g_total_loss, d_total_loss = losses_helper.gan_loss(fake_d,real_d,conv_real,conv_fake)
-
-	total_loss = g_total_loss + total_loss 
-
-####### initialize optimizer #######
 
 MAX_ITERATIONS = 10000
 alternate_global_step = tf.placeholder(tf.int32)
@@ -80,43 +73,16 @@ learning_rate = tf.train.polynomial_decay(0.0001, alternate_global_step,
                                           MAX_ITERATIONS, 0.000001,
                                           power=3)
 
-if discriminator_on == True:
-	learning_rate_d = tf.train.polynomial_decay(0.0001, alternate_global_step,
-	                                          MAX_ITERATIONS, 0.000001,
-	                                          power=3)
 
 
 t_vars = tf.trainable_variables()
 
 
-
-if discriminator_on == True:
-	d_vars = [var for var in t_vars if 'dis' in var.name]
-	opt_d = tf.train.AdamOptimizer(learning_rate_d)
-	d_grads = opt_d.compute_gradients(d_total_loss,var_list=d_vars)
-	apply_gradient_op_d = opt_d.apply_gradients(d_grads, global_step=global_step)
-
-
-
-
-if discriminator_on == True:
-	with tf.control_dependencies([apply_gradient_op_d]):
-		g_vars = [var for var in t_vars if 'vae' in var.name]
-		opt = tf.train.AdamOptimizer(learning_rate)
-		grads = opt.compute_gradients(total_loss,var_list=g_vars)
-		apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
-else:
-	g_vars = tf.trainable_variables()
-	opt = tf.train.AdamOptimizer(learning_rate)
-	grads = opt.compute_gradients(total_loss,var_list=g_vars)
-	apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
+g_vars = tf.trainable_variables()
+opt = tf.train.AdamOptimizer(learning_rate,beta1=0.5, beta2=0.999)
+grads = opt.compute_gradients(total_vae_loss,var_list=g_vars)
+apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
  
-if discriminator_on == True:
-	# Track the moving averages of all trainable variables.
-	variable_averages_d = tf.train.ExponentialMovingAverage(
-	    0.9999, global_step)
-	variables_averages_op_d = variable_averages_d.apply(d_vars)
-	train_op_d = tf.group(apply_gradient_op_d, variables_averages_op_d)
 
 variable_averages_g = tf.train.ExponentialMovingAverage(
     0.9999, global_step)
@@ -132,18 +98,13 @@ train_summaries = []
 
 train_summaries.append(tf.summary.scalar('recon_loss',loss_recon))
 
-if discriminator_on == True:
-	train_summaries.append(tf.summary.scalar('g_loss',g_total_loss))
-	train_summaries.append(tf.summary.scalar('d_loss',d_total_loss))
 
 train_summaries.append(tf.summary.histogram('prediction',prediction))
 train_summaries.append(tf.summary.histogram('gt',input_image))
-train_summaries.append(tf.summary.histogram('z_mu',z_mu))
-train_summaries.append(tf.summary.histogram('z_sigma',z_sigma))
-train_summaries.append(tf.summary.histogram('z_latent',z_latent))
+train_summaries.append(tf.summary.histogram('z_latent',latent_space))
 train_summaries.append(tf.summary.scalar('kl_loss',loss_kl))
 train_summaries.append(tf.summary.scalar('learning_rate',learning_rate))
-train_summaries.append(tf.summary.scalar('total_loss',total_loss))
+train_summaries.append(tf.summary.scalar('total_vae_loss',total_vae_loss))
 train_summaries.append(tf.summary.image('input_image',input_image))
 
 train_summaries.append(tf.summary.image('resulting_image',resulting_image_resized))
@@ -185,20 +146,13 @@ folder_name = ckpt_folder.split('/')[-1]
 for step in range(loop_start,loop_stop+1):
 
 
-	if discriminator_on == True:
-		generator_iterations = 1
-	else:
-		generator_iterations = 1
+	# generator_iterations = 1
 
-	for i in range(generator_iterations):
-		_ , loss = sess.run([train_op,total_loss],feed_dict={
-				alternate_global_step: iteration
-		})
+	# for i in range(generator_iterations):
+	_ , loss = sess.run([train_op,total_vae_loss],feed_dict={
+			alternate_global_step: iteration
+	})
 
-	if discriminator_on == True:
-		_ , loss_d = sess.run([train_op_d,d_total_loss],feed_dict={
-				alternate_global_step: iteration
-		})
 
 
 
@@ -207,10 +161,6 @@ for step in range(loop_start,loop_stop+1):
 	format_str = ('%s: step %d, loss = %.15f, folder = %s')
 	print((format_str % (datetime.now(),step, loss, folder_name)))
 
-	if discriminator_on == True:
-		format_str = ('%s: step %d, loss_d = %.15f, folder = %s')
-		print((format_str % (datetime.now(),step, loss_d, folder_name)))
-		print('')
 
 	if step % 500 == 0:
 		summmary = sess.run(summary_op, feed_dict={
