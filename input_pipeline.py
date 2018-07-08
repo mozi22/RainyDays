@@ -50,17 +50,17 @@ def parse():
 
   for i in range(rainy_start,rainy_end):
     file_id = "{0:0=4d}".format(i)
-    rainy_files.append('./dataset/rainy_small/000'+str(file_id)+'.jpeg')
+    rainy_files.append('./RainRemoval/rainy/000'+str(file_id)+'.jpeg')
 
   for i in range(sunny_start,sunny_end):
     file_id = "{0:0=3d}".format(i)
-    sunny_files.append('./dataset/sunny_small/0000'+str(file_id)+'.jpeg')
+    sunny_files.append('./RainRemoval/sunny/0000'+str(file_id)+'.jpeg')
 
 
   rainy_filenames = tf.constant(rainy_files)
   sunny_filenames = tf.constant(sunny_files)
   dataset = tf.data.Dataset.from_tensor_slices((rainy_filenames, sunny_filenames))
-  dataset = dataset.map(_parse_function).repeat().shuffle(buffer_size=50).apply(tf.contrib.data.batch_and_drop_remainder(32))
+  dataset = dataset.map(_parse_function).repeat().shuffle(buffer_size=50).apply(tf.contrib.data.batch_and_drop_remainder(1))
   # dataset = dataset.prefetch(4)
 
   return dataset
