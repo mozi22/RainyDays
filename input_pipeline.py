@@ -3,12 +3,12 @@ import tensorflow as tf
 def _parse_function(filename, label):
   r_image_string = tf.read_file(filename)
   r_image_decoded = tf.image.decode_jpeg(r_image_string,channels=3)
-  r_image_decoded = tf.reshape(r_image_decoded,[64,64,3])
+  r_image_decoded = tf.reshape(r_image_decoded,[256,256,3])
   r_image_decoded = tf.image.convert_image_dtype(r_image_decoded,tf.float32)
 
   s_image_string = tf.read_file(label)
   s_image_decoded = tf.image.decode_jpeg(s_image_string,channels=3)
-  s_image_decoded = tf.reshape(s_image_decoded,[64,64,3])
+  s_image_decoded = tf.reshape(s_image_decoded,[256,256,3])
   s_image_decoded = tf.image.convert_image_dtype(s_image_decoded,tf.float32)
 
   r_image_decoded = tf.divide(r_image_decoded,[255])

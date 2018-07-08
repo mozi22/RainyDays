@@ -45,16 +45,13 @@ ckpt_folder = './ckpt/working_copy'
 ####### get input #######
 input_image, resulting_image = iterator.get_next()
 
-
-
 ####### make prediction #######
-prediction, latent_space = network.encoder_decoder(input_image,discriminator_on)
+latent_space, prediction = network.encoder_decoder(input_image,discriminator_on)
 ####### define losses #######
-
 # resize input_image for calculating reconstruction loss on a slightly smaller image.
-resulting_image_resized = tf.image.resize_images(input_image,[64,64],method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+# resulting_image_resized = tf.image.resize_images(input_image,[25,64],method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
-loss_recon = losses_helper.reconstruction_loss_l1(prediction,resulting_image_resized)
+loss_recon = losses_helper.reconstruction_loss_l1(prediction,input_image)
 loss_kl = losses_helper.KL_divergence_loss(latent_space)
 
 total_vae_loss = loss_recon * recon_loss_weight + loss_kl * kl_loss_weight
@@ -62,7 +59,7 @@ total_vae_loss = loss_recon * recon_loss_weight + loss_kl * kl_loss_weight
 
 
 
-MAX_ITERATIONS = 10000
+MAX_ITERATIONS = 20000
 alternate_global_step = tf.placeholder(tf.int32)
 
 global_step = tf.get_variable(
@@ -107,7 +104,7 @@ train_summaries.append(tf.summary.scalar('learning_rate',learning_rate))
 train_summaries.append(tf.summary.scalar('total_vae_loss',total_vae_loss))
 train_summaries.append(tf.summary.image('input_image',input_image))
 
-train_summaries.append(tf.summary.image('resulting_image',resulting_image_resized))
+# train_summaries.append(tf.summary.image('resulting_image',resulting_image_resized))
 train_summaries.append(tf.summary.image('predicted_image',prediction))
 
 for grad, var in grads:
