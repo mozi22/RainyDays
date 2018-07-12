@@ -21,7 +21,7 @@ disc_on = True
 dataset = input_pipeline.parse()
 iterator = dataset.make_initializable_iterator()
 
-ckpt_folder = './ckpt/working_copy'
+ckpt_folder = './ckpt/working_copy_high_iterations'
 
 ####### get input #######
 imageA, imageB = iterator.get_next()
@@ -74,7 +74,7 @@ if disc_on == True:
 	Discriminator_B_loss = GAN_weight * D_ad_loss_b
 	Discriminator_loss = Discriminator_A_loss + Discriminator_B_loss
 
-MAX_ITERATIONS = 20000
+MAX_ITERATIONS = 100000
 
 alternate_global_step = tf.placeholder(tf.int32)
 
