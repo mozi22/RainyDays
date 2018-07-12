@@ -9,12 +9,14 @@ import os
 from datetime import datetime
 
 
-recon_loss_weight = 100
-kl_loss_weight = 0.1
+L1_weight = 100
+L1_cycle_weight = 100
+KL_weight = 0.1
+KL_cycle_weight = 0.1
 GAN_weight = 10
 
 
-disc_on = True
+disc_on = False
 
 dataset = input_pipeline.parse()
 iterator = dataset.make_initializable_iterator()
@@ -22,23 +24,55 @@ iterator = dataset.make_initializable_iterator()
 ckpt_folder = './ckpt/working_copy'
 
 ####### get input #######
-input_image, resulting_image = iterator.get_next()
+imageA, imageB = iterator.get_next()
 
 ####### make prediction #######
-latent_space, prediction = network.encoder_decoder(input_image)
+input_Aa, input_Ab, input_Ba, input_Bb, enc_shared_latent_space = network.perform_image_translation(imageA, imageB)
+result_Ab, sharedAb = network.generate_atob(input_Ab)
+result_Ba, sharedBa = network.generate_btoa(input_Ba)
 
 
 
-
-loss_recon = losses_helper.reconstruction_loss_l1(prediction,input_image)
-loss_kl = losses_helper.KL_divergence_loss(latent_space)
-
+real_A_logit, real_B_logit = network.discriminate_real(imageA, imageB)
+fake_A_logit, fake_B_logit = network.discriminate_fake(input_Ab, input_Ba)
 
 
-total_vae_loss = loss_recon * recon_loss_weight + loss_kl * kl_loss_weight 
+G_ad_loss_a = losses_helper.generator_loss(fake_A_logit)
+G_ad_loss_b = losses_helper.generator_loss(fake_B_logit)
+
+D_ad_loss_a = losses_helper.discriminator_loss(real_A_logit, fake_A_logit)
+D_ad_loss_b = losses_helper.discriminator_loss(real_B_logit, fake_B_logit)
+
+loss_reconAb = losses_helper.reconstruction_loss_l1(result_Ab,imageB)
+loss_reconBa = losses_helper.reconstruction_loss_l1(result_Ba,imageA)
+loss_reconB = losses_helper.reconstruction_loss_l1(input_Bb,imageB)
+loss_reconA = losses_helper.reconstruction_loss_l1(input_Aa,imageA)
+
+loss_kl_shared = losses_helper.KL_divergence_loss(enc_shared_latent_space)
+loss_kl_Ab = losses_helper.KL_divergence_loss(sharedAb)
+loss_kl_Ba = losses_helper.KL_divergence_loss(sharedBa)
 
 
-MAX_ITERATIONS = 10000
+Generator_A_loss = GAN_weight * G_ad_loss_a + \
+                   L1_weight * loss_reconA + \
+                   L1_cycle_weight * loss_reconBa + \
+                   KL_weight * loss_kl_shared + \
+                   KL_cycle_weight * loss_kl_Ab
+
+Generator_B_loss = GAN_weight * G_ad_loss_b + \
+                   L1_weight * loss_reconB + \
+                   L1_cycle_weight * loss_reconAb + \
+                   KL_weight * loss_kl_shared + \
+                   KL_cycle_weight * loss_kl_Ba
+
+Generator_loss = Generator_A_loss + Generator_B_loss
+
+Discriminator_A_loss = GAN_weight * D_ad_loss_a
+Discriminator_B_loss = GAN_weight * D_ad_loss_b
+
+Discriminator_loss = Discriminator_A_loss + Discriminator_B_loss
+
+MAX_ITERATIONS = 20000
 
 alternate_global_step = tf.placeholder(tf.int32)
 
@@ -50,39 +84,37 @@ learning_rate = tf.train.polynomial_decay(0.0001, alternate_global_step,
                                           MAX_ITERATIONS, 0.000001,
                                           power=3)
 
-
-if disc_on == True:
-	fake_prediction = network.discriminator(prediction)
-	real_prediction = network.discriminator(input_image,True)
-	loss_generator = losses_helper.generator_loss(fake_prediction)
-	loss_discriminator = losses_helper.discriminator_loss(real_prediction,fake_prediction)
-
-	total_vae_loss +=  loss_generator * GAN_weight
-	total_disc_loss = loss_discriminator * GAN_weight
-
-	d_opt = tf.train.AdamOptimizer(learning_rate,beta1=0.5, beta2=0.999).minimize(total_disc_loss)
+t_vars = tf.trainable_variables()
+G_vars = [var for var in t_vars if ('generator' in var.name) or ('encoder' in var.name) or ('shared_latent_space' in var.name)]
+D_vars = [var for var in t_vars if 'discriminator' in var.name]
 
 
 
-
-g_opt = tf.train.AdamOptimizer(learning_rate,beta1=0.5, beta2=0.999).minimize(total_vae_loss)
+g_opt = tf.train.AdamOptimizer(learning_rate,beta1=0.5, beta2=0.999).minimize(Generator_loss, var_list=G_vars)
+d_opt = tf.train.AdamOptimizer(learning_rate,beta1=0.5, beta2=0.999).minimize(Discriminator_loss, var_list=D_vars)
  
 
 ####### write summaries #######
 
 train_summaries = []
 
-train_summaries.append(tf.summary.scalar('recon_loss',loss_recon))
+train_summaries.append(tf.summary.image('AtoB',result_Ab))
+train_summaries.append(tf.summary.image('BtoA',result_Ba))
+train_summaries.append(tf.summary.image('AtoA',input_Aa))
+train_summaries.append(tf.summary.image('BtoB',input_Bb))
+
+train_summaries.append(tf.summary.scalar('gen_loss',Generator_loss))
+train_summaries.append(tf.summary.scalar('dis_loss',Discriminator_loss))
+train_summaries.append(tf.summary.scalar('KL_trans',loss_kl_shared))
+train_summaries.append(tf.summary.scalar('loss_kl_Ab',loss_kl_Ab))
+train_summaries.append(tf.summary.scalar('loss_kl_Ba',loss_kl_Ba))
+
+train_summaries.append(tf.summary.scalar('recon_AA',loss_reconA))
+train_summaries.append(tf.summary.scalar('recon_AB',loss_reconAb))
+train_summaries.append(tf.summary.scalar('recon_BA',loss_reconBa))
+train_summaries.append(tf.summary.scalar('recon_BB',loss_reconB))
 
 
-train_summaries.append(tf.summary.histogram('prediction',prediction))
-train_summaries.append(tf.summary.histogram('gt',input_image))
-train_summaries.append(tf.summary.histogram('z_latent',latent_space))
-train_summaries.append(tf.summary.scalar('kl_loss',loss_kl))
-train_summaries.append(tf.summary.scalar('learning_rate',learning_rate))
-train_summaries.append(tf.summary.scalar('total_vae_loss',total_vae_loss))
-train_summaries.append(tf.summary.image('input_image',input_image))
-train_summaries.append(tf.summary.image('prediction',prediction))
 
 if disc_on == True:
 	train_summaries.append(tf.summary.scalar('loss_generator',loss_generator))
@@ -121,7 +153,7 @@ for step in range(loop_start,loop_stop+1):
 	# generator_iterations = 1
 
 	# for i in range(generator_iterations):
-	_ , g_loss = sess.run([g_opt,total_vae_loss],feed_dict={
+	_ , g_loss = sess.run([g_opt,Generator_loss],feed_dict={
 			alternate_global_step: iteration
 	})
 
@@ -129,12 +161,11 @@ for step in range(loop_start,loop_stop+1):
 	print((format_str % (datetime.now(),step, g_loss, folder_name)))
 
 
-	if disc_on == True:
-		_ , d_loss = sess.run([d_opt,total_disc_loss],feed_dict={
-				alternate_global_step: iteration
-		})
-		format_str = ('%s: step %d, d_loss = %.15f, folder = %s')
-		print((format_str % (datetime.now(),step, d_loss, folder_name)))
+	_ , d_loss = sess.run([d_opt,Discriminator_loss],feed_dict={
+			alternate_global_step: iteration
+	})
+	format_str = ('%s: step %d, d_loss = %.15f, folder = %s')
+	print((format_str % (datetime.now(),step, d_loss, folder_name)))
 
 
 
