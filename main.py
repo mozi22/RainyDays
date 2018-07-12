@@ -14,7 +14,7 @@ kl_loss_weight = 0.1
 GAN_weight = 10
 
 
-disc_on = False
+disc_on = True
 
 dataset = input_pipeline.parse()
 iterator = dataset.make_initializable_iterator()
@@ -27,13 +27,7 @@ input_image, resulting_image = iterator.get_next()
 ####### make prediction #######
 latent_space, prediction = network.encoder_decoder(input_image)
 
-if disc_on == True:
-	fake_prediction = network.discriminator(prediction)
-	real_prediction = network.discriminator(input_image,True)
-	loss_generator = losses_helper.generator_loss(fake_prediction)
-	loss_discriminator = losses_helper.discriminator_loss(real_prediction,fake_prediction)
 
-	d_opt = tf.train.AdamOptimizer(learning_rate,beta1=0.5, beta2=0.999).minimize(total_disc_loss)
 
 
 loss_recon = losses_helper.reconstruction_loss_l1(prediction,input_image)
@@ -44,12 +38,8 @@ loss_kl = losses_helper.KL_divergence_loss(latent_space)
 total_vae_loss = loss_recon * recon_loss_weight + loss_kl * kl_loss_weight 
 
 
-if disc_on == True:
-	total_vae_loss +=  loss_generator * GAN_weight
-	total_disc_loss = loss_discriminator * GAN_weight
-
-
 MAX_ITERATIONS = 10000
+
 alternate_global_step = tf.placeholder(tf.int32)
 
 global_step = tf.get_variable(
@@ -59,6 +49,21 @@ global_step = tf.get_variable(
 learning_rate = tf.train.polynomial_decay(0.0001, alternate_global_step,
                                           MAX_ITERATIONS, 0.000001,
                                           power=3)
+
+
+if disc_on == True:
+	fake_prediction = network.discriminator(prediction)
+	real_prediction = network.discriminator(input_image,True)
+	loss_generator = losses_helper.generator_loss(fake_prediction)
+	loss_discriminator = losses_helper.discriminator_loss(real_prediction,fake_prediction)
+
+	total_vae_loss +=  loss_generator * GAN_weight
+	total_disc_loss = loss_discriminator * GAN_weight
+
+	d_opt = tf.train.AdamOptimizer(learning_rate,beta1=0.5, beta2=0.999).minimize(total_disc_loss)
+
+
+
 
 g_opt = tf.train.AdamOptimizer(learning_rate,beta1=0.5, beta2=0.999).minimize(total_vae_loss)
  
