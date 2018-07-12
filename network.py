@@ -19,7 +19,7 @@ def conv(name,inputs, filters, kernel_size, stride, activation=myLeakyRelu, pad=
                             kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
                             strides=stride, 
                             kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=0.0001),
-                            activation=myLeakyRelu,
+                            activation=activation,
                             name=name)
 
     return layer
@@ -33,7 +33,7 @@ def conv_transpose(name,inputs, filters, kernel_size, stride, activation=myLeaky
                                        kernel_initializer=tf.truncated_normal_initializer(stddev=0.02),
                                        strides=stride, 
                                        kernel_regularizer=tf.contrib.layers.l2_regularizer(scale=0.0001),
-                                       activation=myLeakyRelu,
+                                       activation=activation,
                                        name=name)
 
     return layer
@@ -80,26 +80,40 @@ def resblock(name,inputs, filters, kernel_size=3, stride=1, pad=1) :
 '''
 def perform_image_translation(domainA,domainB):
 
-      
+    print('translation')
+    print(domainA)
+    print(domainB)
     enc_domain_A = encoder(domainA,'encoderA')  # Step 1
     enc_domain_B = encoder(domainB,'encoderB')  # Step 1
-
     # encoding 
     encoded_imgs = tf.concat([enc_domain_A,enc_domain_B],axis=0)  # Step 2
+    print(encoded_imgs)
     encoded_imgs = shared_res_layer_encoder(encoded_imgs)   # Step 3
+    print(encoded_imgs)
+
 
     # latent space
     enc_shared_latent_space = shared_latent_space(encoded_imgs) # Step 4
+    print(enc_shared_latent_space)
 
     decoded_imgs = shared_res_layer_decoder(enc_shared_latent_space) # Step 5
+    print(decoded_imgs)
 
     # decoding
     decoded_imgsA = decoder(decoded_imgs,'decoderA') # Step 6
     decoded_imgsB = decoder(decoded_imgs,'decoderB') # Step 6
 
+    print(decoded_imgsA)
+    print(decoded_imgsB)
+
     # Ab means A to B and same for others.
     input_Aa, input_Ab = tf.split(decoded_imgsA, 2, axis=0) # Step 7
     input_Ba, input_Bb = tf.split(decoded_imgsB, 2, axis=0) # Step 7
+
+    print(input_Aa)
+    print(input_Ab)
+    print(input_Ba)
+    print(input_Bb)
 
     return input_Aa, input_Ab, input_Ba, input_Bb, enc_shared_latent_space
 
