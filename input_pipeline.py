@@ -11,18 +11,17 @@ def _parse_function(filename, label):
   s_image_decoded = tf.reshape(s_image_decoded,[256,256,3])
   s_image_decoded = tf.image.convert_image_dtype(s_image_decoded,tf.float32)
 
-  r_image_decoded = tf.divide(r_image_decoded,[255])
-  s_image_decoded = tf.divide(s_image_decoded,[255])
+  # r_image_decoded = tf.divide(r_image_decoded,[255])
+  # s_image_decoded = tf.divide(s_image_decoded,[255])
 
 
-  r_image_decoded = tf.image.per_image_standardization(r_image_decoded)
-  s_image_decoded = tf.image.per_image_standardization(s_image_decoded)
+  r_image_decoded_std = tf.image.per_image_standardization(r_image_decoded)
+  s_image_decoded_std = tf.image.per_image_standardization(s_image_decoded)
 
   # r_image_decoded = tf.image.resize_images(r_image_decoded,[64,64])
   # s_image_decoded = tf.image.resize_images(s_image_decoded,[64,64])
-  print(r_image_decoded)
 
-  return r_image_decoded, s_image_decoded
+  return r_image_decoded_std, s_image_decoded_std
 
 # used once to resize the images from 256 to 64
 def imread(path):
