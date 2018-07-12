@@ -97,6 +97,8 @@ d_opt = tf.train.AdamOptimizer(learning_rate,beta1=0.5, beta2=0.999).minimize(Di
 ####### write summaries #######
 
 train_summaries = []
+train_summaries.append(tf.summary.image('A',imageA))
+train_summaries.append(tf.summary.image('B',imageB))
 
 train_summaries.append(tf.summary.image('AtoB',result_Ab))
 train_summaries.append(tf.summary.image('BtoA',result_Ba))
